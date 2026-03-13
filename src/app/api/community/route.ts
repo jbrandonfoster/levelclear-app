@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
     const posts = await prisma.communityPost.findMany({
       orderBy: {
         createdAt: 'desc',
@@ -20,10 +21,17 @@ export async function GET(request: NextRequest) {
           },
         },
         likes: {
-          select: { id: true },
+          select: {
+            id: true,
+            userId: true,
+            user: {
+              select: { name: true },
+            },
+          },
         },
         comments: {
           select: { id: true },
+          orderBy: { createdAt: 'asc' as const },
         },
       },
       take: 50,
@@ -38,6 +46,8 @@ export async function GET(request: NextRequest) {
       isCreator: post.user.email === 'jbrandonfoster@levelclear.com',
       content: post.content,
       likes: post.likes.length,
+      likedByNames: post.likes.map((l) => l.user.name).filter(Boolean),
+      isLikedByMe: session?.user?.id ? post.likes.some((l) => l.userId === session.user.id) : false,
       comments: post.comments.length,
       createdAt: post.createdAt.toISOString(),
     }));
